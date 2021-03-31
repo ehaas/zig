@@ -980,7 +980,12 @@ fn transEnumDecl(c: *Context, scope: *Scope, enum_decl: *const clang.EnumDecl) E
                 else => |e| return e,
             }
         else
-            try Tag.type.create(c.arena, "c_int");
+            transQualType(c, scope, int_type, enum_loc) catch |err| switch (err) {
+                error.UnsupportedType => {
+                    return failDecl(c, enum_loc, name, "unable to translate enum tag type", .{});
+                },
+                else => |e| return e,
+            };
 
         it = enum_def.enumerator_begin();
         end_it = enum_def.enumerator_end();
@@ -1954,7 +1959,7 @@ fn transCCast(
     dst_type: clang.QualType,
     src_type: clang.QualType,
     expr: Node,
-) !Node {
+) TransError!Node {
     if (qualTypeCanon(dst_type).isVoidType()) return expr;
     if (dst_type.eq(src_type)) return expr;
     if (qualTypeIsPtr(dst_type) and qualTypeIsPtr(src_type))
@@ -2021,7 +2026,9 @@ fn transCCast(
     }
     if (cIsEnum(dst_type)) {
         // @intToEnum(dest_type, val)
-        return Tag.int_to_enum.create(c.arena, .{ .lhs = dst_node, .rhs = expr });
+        // const src_int_type = cIntTypeForEnum(dst_type);
+        const casted = try transCCast(c, scope, loc, cIntTypeForEnum(dst_type), src_type, expr);
+        return Tag.int_to_enum.create(c.arena, .{ .lhs = dst_node, .rhs = casted });
     }
     if (cIsEnum(src_type) and !cIsEnum(dst_type)) {
         // @enumToInt(val)
