@@ -130,7 +130,7 @@ const Scope = struct {
         fn makeMangledName(scope: *Block, c: *Context, name: []const u8) ![]const u8 {
             const name_copy = try c.arena.dupe(u8, name);
             var proposed_name = name_copy;
-            while (scope.contains(proposed_name)) {
+            while (scope.contains(proposed_name) or mem.eql(u8, proposed_name, "_")) {
                 scope.mangle_count += 1;
                 proposed_name = try std.fmt.allocPrint(c.arena, "{s}_{d}", .{ name, scope.mangle_count });
             }
@@ -4951,10 +4951,6 @@ fn transMacroDefine(c: *Context, m: *MacroCtx) ParseError!void {
     const scope = &c.global_scope.base;
 
     const init_node = try parseCExpr(c, m, scope);
-    if (init_node.castTag(.identifier)) |ident_node| {
-        if (mem.eql(u8, "_", ident_node.data))
-            return m.fail(c, "unable to translate C expr: illegal identifier _", .{});
-    }
     const last = m.next().?;
     if (last != .Eof and last != .Nl)
         return m.fail(c, "unable to translate C expr: unexpected token .{s}", .{@tagName(last)});
