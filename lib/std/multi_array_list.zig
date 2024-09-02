@@ -17,11 +17,20 @@ const testing = std.testing;
 /// for the array of each field.  From the slice you can call
 /// `.items(.<field_name>)` to obtain a slice of field values.
 /// For unions you can call `.items(.tags)` or `.items(.data)`.
+///
+/// Default initialization of this struct is deprecated; use `.empty` instead.
 pub fn MultiArrayList(comptime T: type) type {
     return struct {
         bytes: [*]align(@alignOf(T)) u8 = undefined,
         len: usize = 0,
         capacity: usize = 0,
+
+        /// A MultiArrayList containing no elements.
+        pub const empty: Self = .{
+            .bytes = undefined,
+            .len = 0,
+            .capacity = 0,
+        };
 
         const Elem = switch (@typeInfo(T)) {
             .@"struct" => T,
